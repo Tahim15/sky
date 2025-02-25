@@ -126,8 +126,8 @@ def setup_chromedriver():
         browser_executable_path="/usr/bin/google-chrome",
         driver_executable_path="/usr/bin/chromedriver"
     )    
- 
-   return driver
+    return driver
+    
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
     os.system("pkill -f chrome || true")
