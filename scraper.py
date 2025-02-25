@@ -114,15 +114,14 @@ async def extract_download_links(movie_url):
 
 def setup_chromedriver():
     options = uc.ChromeOptions()
-    options.add_argument("--headless=new")  
-    options.add_argument("--no-sandbox") 
-    options.add_argument("--disable-dev-shm-usage")  
-    options.add_argument("--disable-popup-blocking")  
-    options.add_argument("--disable-blink-features=AutomationControlled") 
-    options.page_load_strategy = "eager" 
-    options.binary_location = "/usr/bin/google-chrome"
-    driver = uc.Chrome(options=chrome_options, browser_executable_path="/usr/bin/google-chrome")
-    driver = uc.Chrome(options=options)    
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-popup-blocking")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.page_load_strategy = "eager"
+
+    driver = uc.Chrome(options=options, browser_executable_path="/usr/bin/google-chrome")
     return driver
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
