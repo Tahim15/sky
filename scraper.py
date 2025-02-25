@@ -120,13 +120,16 @@ def setup_chromedriver():
     options.add_argument("--disable-popup-blocking")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.page_load_strategy = "eager"
-    options.binary_location = "/usr/bin/google-chrome"    
+    options.binary_location = "/usr/bin/google-chrome"
+    
     driver = uc.Chrome(
         options=options,
         browser_executable_path="/usr/bin/google-chrome",
         driver_executable_path="/usr/bin/chromedriver"
-    )    
+    )
+    
     return driver
+
     
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
