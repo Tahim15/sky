@@ -114,7 +114,7 @@ async def extract_download_links(movie_url):
         return None
 
 def setup_chromedriver():
-    options = uc.ChromeOptions()
+    options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -136,12 +136,9 @@ def setup_chromedriver():
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--disable-features=TranslateUI")
     options.page_load_strategy = "eager"
-    
-    options.binary_location = "/usr/bin/chromium"
-    driver_path = shutil.which("chromedriver")
-    if not driver_path:
-        raise FileNotFoundError("Chromedriver not found! Make sure it is installed.")
-    driver = uc.Chrome(options=options, driver_executable_path=driver_path)    
+    options.binary_location = "/usr/bin/google-chrome"
+    driver_path = "/usr/local/bin/chromedriver"
+    driver = webdriver.Chrome(options=options, executable_path=driver_path)
     return driver
 
     
