@@ -123,9 +123,7 @@ def setup_chromedriver():
     options.binary_location = "/usr/bin/google-chrome"
     
     driver = uc.Chrome(
-        options=options,
-        browser_executable_path="/usr/bin/google-chrome",
-        driver_executable_path="/usr/bin/chromedriver"
+        options=options
     )
     
     return driver
