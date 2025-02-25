@@ -48,12 +48,9 @@ def setup_chromedriver():
     options.add_argument("--disable-blink-features=AutomationControlled") 
     options.page_load_strategy = "eager"
 
-    # Ensure correct Chrome binary path (modify if needed)
-    chrome_binary_path = "/usr/bin/google-chrome"  # Adjust based on your environment
+    chrome_binary_path = "/usr/bin/google-chrome"
     options.binary_location = chrome_binary_path
-
-    # Ensure correct driver path (modify if needed)
-    driver_path = "/usr/local/bin/chromedriver"  # Adjust based on your environment
+    driver_path = "/usr/local/bin/chromedriver"
 
     driver = uc.Chrome(options=options, browser_executable_path=chrome_binary_path, driver_executable_path=driver_path)
     
@@ -130,6 +127,22 @@ async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
         return {"file_name": "Unknown File", "download_links": []}
     finally:
         wd.quit()
+
+def get_movie_links():
+    response = requests.get(SKYMOVIESHD_URL, headers=HEADERS)
+    if response.status_code != 200:
+        logging.error("❌ Failed to fetch SkymoviesHD!")
+        return []
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    movies = []
+    
+    for post in soup.select(".postTitle"):
+        title = post.get_text(strip=True)
+        link = post.find("a")["href"]
+        movies.append({"title": title, "link": link})
+    
+    return movies
 
 async def scrape_skymovieshd(client):
     posted_movies = load_posted_movies() 
