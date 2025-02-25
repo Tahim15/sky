@@ -121,6 +121,7 @@ def setup_chromedriver():
     options.add_argument("--disable-blink-features=AutomationControlled") 
     options.page_load_strategy = "eager" 
     options.binary_location = "/usr/bin/google-chrome"
+    driver = uc.Chrome(options=chrome_options, browser_executable_path="/usr/bin/google-chrome")
     driver = uc.Chrome(options=options)    
     return driver
 
