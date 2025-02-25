@@ -39,78 +39,6 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-async def extract_downlo_links(movie_url):
-    try:
-        response = requests.get(movie_url, headers=HEADERS)
-        if response.status_code != 200:
-            logging.error(f"Failed to load movie page {movie_url} (Status Code: {response.status_code})")
-            return None        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="Robiul"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
-        _cache = set()
-        hubcloud_links = []        
-        for link in soup.select('a[href*="howblogs.xyz"]'):
-            href = link['href']
-            if href in _cache:
-                continue
-            _cache.add(href)
-            resp = requests.get(href, headers=HEADERS)
-            nsoup = BeautifulSoup(resp.text, 'html.parser')
-            atag = nsoup.select('div[class="cotent-box"] > a[href]')
-            for dl_link in atag:
-                hubcloud_url = dl_link['href']
-                if "hubcloud" in hubcloud_url:
-                    hubcloud_links.append(hubcloud_url)
-        if not hubcloud_links:
-            logging.warning(f"No HubCloud links found for {movie_url}")
-            return None
-        direct_links = await get_direct_hubcloud_link(hubcloud_links[0])
-        if not direct_links:
-            return None
-        return direct_links
-    except Exception as e:
-        logging.error(f"Error extracting download links from {movie_url}: {e}")
-        return None
-
-async def extract_download_links(movie_url):
-    try:
-        response = requests.get(movie_url, headers=HEADERS)
-        if response.status_code != 200:
-            logging.error(f"Failed to load movie page {movie_url} (Status Code: {response.status_code})")
-            return None                    
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="Robiul"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"        
-        _cache = set()
-        hubcloud_links = []                
-        for link in soup.select('a[href*="howblogs.xyz"]'):
-            href = link['href']
-            if href in _cache:
-                continue
-            _cache.add(href)            
-            resp = requests.get(href, headers=HEADERS)
-            nsoup = BeautifulSoup(resp.text, 'html.parser')
-            atag = nsoup.select('div[class="cotent-box"] > a[href]')            
-            for dl_link in atag:
-                hubcloud_url = dl_link['href']
-                if "hubcloud" in hubcloud_url:
-                    hubcloud_links.append(hubcloud_url)        
-        if not hubcloud_links:
-            logging.warning(f"No HubCloud links found for {movie_url}")
-            return None        
-        direct_links = []
-        for hubcloud_url in hubcloud_links:
-            extracted_data = await get_direct_hubcloud_link(hubcloud_url)
-            if isinstance(extracted_data, dict) and "file_name" in extracted_data and "download_links" in extracted_data:
-                direct_links.append(extracted_data)        
-        if not direct_links:
-            return None        
-        return direct_links
-    except Exception as e:
-        logging.error(f"Error extracting download links from {movie_url}: {e}")
-        return None
-
 def setup_chromedriver():
     options = uc.ChromeOptions()
     options.add_argument("--headless=new")  
@@ -118,8 +46,17 @@ def setup_chromedriver():
     options.add_argument("--disable-dev-shm-usage")  
     options.add_argument("--disable-popup-blocking")  
     options.add_argument("--disable-blink-features=AutomationControlled") 
-    options.page_load_strategy = "eager" 
-    driver = uc.Chrome(options=options)    
+    options.page_load_strategy = "eager"
+
+    # Ensure correct Chrome binary path (modify if needed)
+    chrome_binary_path = "/usr/bin/google-chrome"  # Adjust based on your environment
+    options.binary_location = chrome_binary_path
+
+    # Ensure correct driver path (modify if needed)
+    driver_path = "/usr/local/bin/chromedriver"  # Adjust based on your environment
+
+    driver = uc.Chrome(options=options, browser_executable_path=chrome_binary_path, driver_executable_path=driver_path)
+    
     return driver
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
@@ -193,27 +130,6 @@ async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
         return {"file_name": "Unknown File", "download_links": []}
     finally:
         wd.quit()
-                  
-def get_movie_links():
-    try:
-        response = requests.get(SKYMOVIESHD_URL, headers=HEADERS)
-        if response.status_code != 200:
-            logging.error(f"Failed to load SkyMoviesHD (Status Code: {response.status_code})")
-            return []
-        soup = BeautifulSoup(response.text, "html.parser")
-        movie_links = []
-        for movie in soup.find_all("div", class_="Fmvideo"):
-            a_tag = movie.find('a')
-            if a_tag:
-                title = a_tag.text.strip()
-                movie_url = a_tag['href']
-                if not movie_url.startswith("http"):
-                    movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
-                movie_links.append({"title": title, "link": movie_url})        
-        return movie_links
-    except Exception as e:
-        logging.error(f"Error getting movie links: {e}")
-        return []
 
 async def scrape_skymovieshd(client):
     posted_movies = load_posted_movies() 
