@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 import json
 import random
@@ -118,14 +119,29 @@ def setup_chromedriver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-popup-blocking")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-infobars")
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--disable-background-networking")
+    options.add_argument("--disable-renderer-backgrounding")
+    options.add_argument("--disable-features=ScriptStreaming,ScriptStreamingOnPreload")
+    options.add_argument("--disable-site-isolation-trials")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--disable-sync")
+    options.add_argument("--metrics-recording-only")
+    options.add_argument("--mute-audio")
+    options.add_argument("--no-default-browser-check")
+    options.add_argument("--no-first-run")
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--disable-features=TranslateUI")
     options.page_load_strategy = "eager"
-    options.binary_location = "/usr/bin/google-chrome"
     
-    driver = uc.Chrome(
-        options=options
-    )
-    
+    options.binary_location = "/usr/bin/chromium"
+    driver_path = shutil.which("chromedriver")
+    if not driver_path:
+        raise FileNotFoundError("Chromedriver not found! Make sure it is installed.")
+    driver = uc.Chrome(options=options, driver_executable_path=driver_path)    
     return driver
 
     
