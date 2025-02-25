@@ -12,7 +12,7 @@ CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 30))  # Check every 5 minu
 CAPTCHA_API_KEY = os.environ.get("CAPTCHA_API_KEY", "42341e63a823ae375e6bef411db7ce85")
 
 PORT = os.environ.get("PORT", "8087")
-TG_BOT_WORKERS = int(os.environ.get("BOT_WORKERS", "4"))
+TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "4"))
 
 
 
