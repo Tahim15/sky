@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     libasound2 \
     libgbm-dev \
-    ca-certificates && \
+    ca-certificates \
+    fonts-liberation \
+    libvulkan1 \
+    xdg-utils && \
     rm -rf /var/lib/apt/lists/*  # Clean up apt cache to reduce image size
 
 # Download and install Chrome (instead of Chromium)
