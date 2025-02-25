@@ -24,14 +24,14 @@ RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd6
     && dpkg -i google-chrome-stable_current_amd64.deb || apt-get -fy install \
     && rm google-chrome-stable_current_amd64.deb
 
-# Set Chrome binary path
-ENV CHROME_BIN=/usr/bin/google-chrome
-
 # Install Chromedriver (Matching Chrome Version)
 RUN CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE) && \
     wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
     unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
     rm /tmp/chromedriver.zip
+
+# Set Chrome binary path for ChromeDriver
+ENV CHROME_BIN=/usr/bin/google-chrome
 
 # Copy project files
 COPY . .
