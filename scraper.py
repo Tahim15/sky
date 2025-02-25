@@ -8,7 +8,6 @@ import psutil
 from config import *
 from pyrogram import Client, enums
 from bs4 import BeautifulSoup
-from selenium import webdriver
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -21,20 +20,17 @@ from selenium.common.exceptions import TimeoutException, StaleElementReferenceEx
 # Logging Setup
 logging.basicConfig(level=logging.INFO)
 
-# SkyMoviesHD Base URL
 SKYMOVIESHD_URL = "https://skymovieshd.video/"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 }
 
-# Data storage
 MOVIES_FILE = "data/movies.json"
 os.makedirs("data", exist_ok=True)
 if not os.path.exists(MOVIES_FILE):
     with open(MOVIES_FILE, "w") as f:
         json.dump([], f)
 
-# Load and save posted movies
 def load_posted_movies():
     try:
         with open(MOVIES_FILE, "r") as f:
@@ -76,9 +72,6 @@ async def extract_download_links(movie_url):
             return None
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="Robiul"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
-
         _cache = set()
         hubdrive_links = []
 
@@ -96,15 +89,10 @@ async def extract_download_links(movie_url):
             nsoup = BeautifulSoup(resp.text, 'html.parser')
             atag = nsoup.select('div[class*="content"] a[href]')
 
-            found_link = False
             for dl_link in atag:
                 hubdrive_url = dl_link['href']
                 if "hubdrive" in hubdrive_url:
                     hubdrive_links.append(hubdrive_url)
-                    found_link = True
-
-            if not found_link:
-                logging.warning(f"No HubDrive links found in Howblogs page: {href}")
 
         if not hubdrive_links:
             return None
@@ -116,12 +104,11 @@ async def extract_download_links(movie_url):
         return None
 
 # Bypass HubDrive and get final download links
-async def get_direct_hubdrive_link(hubdrive_url, max_retries=5):
+async def get_direct_hubdrive_link(hubdrive_url):
     wd = setup_chromedriver()
     try:
-        logging.info(f"🖇️ Opening {hubdrive_url}...")
+        logging.info(f"Opening {hubdrive_url}...")
         wd.get(hubdrive_url)
-
         WebDriverWait(wd, 20).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
         file_name = "Unknown File"
@@ -133,11 +120,8 @@ async def get_direct_hubdrive_link(hubdrive_url, max_retries=5):
         except TimeoutException:
             logging.warning("⚠️ File name not found!")
 
-        retries = 0
-        while retries < max_retries:
+        while True:
             current_url = wd.current_url
-            logging.info(f"📌 Current URL: {current_url}")
-
             if "hubdrive" in current_url:
                 try:
                     download_button = WebDriverWait(wd, 10).until(
@@ -146,28 +130,13 @@ async def get_direct_hubdrive_link(hubdrive_url, max_retries=5):
                     wd.execute_script("arguments[0].click();", download_button)
                     time.sleep(1)
                 except TimeoutException:
-                    logging.warning("⚠️ Download button not found!")
-                    retries += 1
-                    continue
-
-            while len(wd.window_handles) > 1:
-                wd.switch_to.window(wd.window_handles[-1])
-                time.sleep(1.5)
-                wd.close()
-                wd.switch_to.window(wd.window_handles[0])
+                    break
 
             if "hubdrive" not in wd.current_url:
                 final_buttons = wd.find_elements(By.XPATH, "//a[contains(@class, 'btn')]")
                 final_links = [btn.get_attribute("href") for btn in final_buttons if "Download" in btn.text]
 
-                if final_links:
-                    return {"file_name": file_name, "download_links": final_links}
-                else:
-                    retries += 1
-                    wd.back()
-                    continue
-
-            retries += 1
+                return {"file_name": file_name, "download_links": final_links}
 
         return {"file_name": file_name, "download_links": []}
 
@@ -177,33 +146,15 @@ async def get_direct_hubdrive_link(hubdrive_url, max_retries=5):
     finally:
         wd.quit()
 
-# Get movie links from SkyMoviesHD
-def get_movie_links():
-    try:
-        response = requests.get(SKYMOVIESHD_URL, headers=HEADERS)
-        if response.status_code != 200:
-            return []
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        movie_links = []
-
-        for movie in soup.find_all("div", class_="Fmvideo"):
-            a_tag = movie.find('a')
-            if a_tag:
-                title = a_tag.text.strip()
-                movie_url = a_tag['href']
-                movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
-                movie_links.append({"title": title, "link": movie_url})
-
-        return movie_links
-    except Exception as e:
-        logging.error(f"Error getting movie links: {e}")
-        return []
-
 # Scrape and post movies
 async def scrape_skymovieshd(client):
     posted_movies = load_posted_movies()
-    movies = get_movie_links()
+    response = requests.get(SKYMOVIESHD_URL, headers=HEADERS)
+    if response.status_code != 200:
+        return
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    movies = [{"title": a.text.strip(), "link": a['href']} for a in soup.select('div.Fmvideo a')]
 
     for movie in movies:
         if movie['title'] in posted_movies:
