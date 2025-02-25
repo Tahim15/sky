@@ -8,3 +8,5 @@ aiohttp
 chromedriver_autoinstaller
 undetected-chromedriver
 webdriver-manager
+setuptools
+wheel
