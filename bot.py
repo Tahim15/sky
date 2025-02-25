@@ -21,7 +21,7 @@ class Bot(Client):
             name="Bot",
             api_hash=API_HASH,
             api_id=API_ID,
-            workers=BOT_WORKERS,
+            workers=TG_BOT_WORKERS,
             bot_token=BOT_TOKEN
         )
         self.LOGGER = LOGGER
