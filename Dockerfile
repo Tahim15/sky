@@ -5,7 +5,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     curl \
-    jq \
     xvfb \
     libxi6 \
     libgconf-2-4 \
@@ -20,31 +19,34 @@ RUN apt-get update && apt-get install -y \
     xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
-# Create directories for Chrome and Chromedriver
-RUN mkdir -p /opt/chrome /opt/chromedriver
+# Set working directory
+WORKDIR /opt
 
-# Fetch the latest stable version of Chrome for Testing
-RUN LATEST_VERSION=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-build.json | jq -r '.builds.stable') && \
-    echo "Latest Chrome Version: $LATEST_VERSION" && \
-    
-    # Download Chrome and Chromedriver
-    wget https://storage.googleapis.com/chrome-for-testing-public/$LATEST_VERSION/linux64/chrome-linux64.zip -O /tmp/chrome-linux64.zip && \
-    wget https://storage.googleapis.com/chrome-for-testing-public/$LATEST_VERSION/linux64/chromedriver-linux64.zip -O /tmp/chromedriver-linux64.zip && \
+# Define Chrome version (HARD-CODED to avoid dynamic failures)
+ENV CHROME_VERSION=133.0.6943.141
 
-    # Unzip the downloaded files
+# Download and install Chrome & Chromedriver (matching versions)
+RUN echo "Installing Chrome version $CHROME_VERSION..." && \
+    wget -O /tmp/chrome-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/$CHROME_VERSION/linux64/chrome-linux64.zip" && \
+    wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/$CHROME_VERSION/linux64/chromedriver-linux64.zip" && \
+
+    # Unzip Chrome & Chromedriver
     unzip /tmp/chrome-linux64.zip -d /opt/chrome/ && \
     unzip /tmp/chromedriver-linux64.zip -d /opt/chromedriver/ && \
 
-    # Remove zip files
+    # Remove ZIP files
     rm /tmp/chrome-linux64.zip /tmp/chromedriver-linux64.zip && \
 
-    # Move the binaries to the appropriate locations
+    # Move binaries to correct locations
     mv /opt/chrome/chrome-linux64/chrome /usr/bin/google-chrome && \
-    mv /opt/chrome/chrome-linux64/chrome-sandbox /usr/bin/chrome-sandbox && \
     mv /opt/chromedriver/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver && \
 
-    # Set the correct permissions
-    chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox /usr/local/bin/chromedriver
+    # Set correct permissions
+    chmod +x /usr/bin/google-chrome /usr/local/bin/chromedriver && \
+
+    # Verify installation
+    google-chrome --version && \
+    chromedriver --version
 
 # Set environment variables
 ENV CHROME_BIN=/usr/bin/google-chrome
