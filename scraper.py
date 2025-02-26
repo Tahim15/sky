@@ -122,33 +122,32 @@ def setup_chromedriver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-popup-blocking")
-    options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--disable-background-networking")
-    options.add_argument("--disable-renderer-backgrounding")
-    options.add_argument("--disable-features=ScriptStreaming,ScriptStreamingOnPreload")
-    options.add_argument("--disable-site-isolation-trials")
-    options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--disable-sync")
-    options.add_argument("--metrics-recording-only")
-    options.add_argument("--mute-audio")
-    options.add_argument("--no-default-browser-check")
-    options.add_argument("--no-first-run")
     options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--disable-features=TranslateUI")
     options.page_load_strategy = "eager"
-    options.binary_location = "/usr/bin/google-chrome"
 
-    # Generate a unique directory for each instance
-    user_data_dir = f"/tmp/chrome-user-{uuid.uuid4()}"
-    options.add_argument(f"--user-data-dir={user_data_dir}")
+    unique_dir = f"/tmp/chrome_user_{uuid.uuid4()}"
+    options.add_argument(f"--user-data-dir={unique_dir}")
 
     service = Service("/usr/local/bin/chromedriver")
-
     driver = webdriver.Chrome(service=service, options=options)
-    return driver   
+
+    def cleanup():
+        driver.quit()
+        if os.path.exists(unique_dir):
+            shutil.rmtree(unique_dir, ignore_errors=True)
+
+    return driver, cleanup
+
+driver, cleanup = setup_chromedriver()
+
+try:
+    driver.get("https://skymovieshd.video/movie/...")
+
+finally:
+    cleanup()  
 
     
 
