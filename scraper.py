@@ -115,7 +115,7 @@ async def extract_download_links(movie_url):
         return None
 
 
-def setup_chromedriver():
+ def setup_chromedriver():
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -137,17 +137,17 @@ def setup_chromedriver():
     options.add_argument("--no-first-run")
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--disable-features=TranslateUI")
-
-    # Ensure unique user data directory
-    user_data_dir = f"/tmp/chrome-user-{os.getpid()}"
-    options.add_argument(f"--user-data-dir={user_data_dir}")
-
     options.page_load_strategy = "eager"
     options.binary_location = "/usr/bin/google-chrome"
 
+    # Generate a unique directory for each instance
+    user_data_dir = f"/tmp/chrome-user-{uuid.uuid4()}"
+    options.add_argument(f"--user-data-dir={user_data_dir}")
+
     service = Service("/usr/local/bin/chromedriver")
+
     driver = webdriver.Chrome(service=service, options=options)
-    return driver    
+    return driver   
 
     
 
