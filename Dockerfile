@@ -31,11 +31,11 @@ RUN echo "Starting download of Google Chrome..." && \
     ls -R /opt && \
     echo "Finding all files in /opt/:" && \
     find /opt -type f && \
-    echo "Attempting to find and move google-chrome..." && \
+    echo "Finding google-chrome file:" && \
     find /opt -name "google-chrome" && \
-    echo "Attempting to find and move chrome-sandbox..." && \
+    echo "Finding chrome-sandbox file:" && \
     find /opt -name "chrome-sandbox" && \
-    echo "Moving google-chrome and chrome-sandbox to /usr/bin..." && \
+    echo "Attempting to move google-chrome and chrome-sandbox to /usr/bin..." && \
     mv /opt/*/google-chrome /usr/bin/google-chrome && \
     mv /opt/*/chrome-sandbox /usr/bin/chrome-sandbox && \
     echo "Changing permissions for google-chrome and chrome-sandbox..." && \
