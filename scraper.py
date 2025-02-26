@@ -115,8 +115,6 @@ async def extract_download_links(movie_url):
         logging.error(f"Error extracting download links from {movie_url}: {e}")
         return None
 
-
-  
 def setup_chromedriver():
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
@@ -129,18 +127,15 @@ def setup_chromedriver():
     options.add_argument("--ignore-certificate-errors")
     options.page_load_strategy = "eager"
 
-    unique_dir = f"/tmp/chrome_user_{uuid.uuid4()}"
-    options.add_argument(f"--user-data-dir={unique_dir}")
-
     service = Service("/usr/local/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=options)
 
     def cleanup():
         driver.quit()
-        if os.path.exists(unique_dir):
-            shutil.rmtree(unique_dir, ignore_errors=True)
 
     return driver, cleanup
+  
+
     
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
