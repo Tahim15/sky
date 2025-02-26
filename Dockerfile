@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-# Install necessary dependencies
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -23,11 +23,13 @@ RUN apt-get update && apt-get install -y \
 RUN wget https://storage.googleapis.com/chrome-for-testing-public/133.0.6943.141/linux64/chrome-linux64.zip -O /tmp/chrome-linux64.zip && \
     unzip /tmp/chrome-linux64.zip -d /opt/ && \
     rm /tmp/chrome-linux64.zip && \
+    ls -la /opt && \
+    ls -la /opt/google-chrome-stable* && \
     mv /opt/google-chrome-stable*/google-chrome /usr/bin/google-chrome && \
     mv /opt/google-chrome-stable*/chrome-sandbox /usr/bin/chrome-sandbox && \
     chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox
 
-# Download and install the specific version of Chromedriver (133.0.6943.141)
+# Install Chromedriver
 RUN wget https://storage.googleapis.com/chrome-for-testing-public/133.0.6943.141/linux64/chromedriver-linux64.zip -O /tmp/chromedriver-linux64.zip && \
     unzip /tmp/chromedriver-linux64.zip -d /usr/local/bin/ && \
     rm /tmp/chromedriver-linux64.zip && \
@@ -46,8 +48,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your app
 COPY . .
 
-# Expose port
 EXPOSE 8087
 
-# Set the default command to run your bot
 CMD ["python", "bot.py"]
