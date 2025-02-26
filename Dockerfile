@@ -1,7 +1,6 @@
-
 FROM python:3.10-slim
 
-# Install necessary packages
+# Install required dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -21,22 +20,22 @@ RUN apt-get update && apt-get install -y \
     xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
-# Create directories for Chrome and ChromeDriver
+# Create directories for Chrome and Chromedriver
 RUN mkdir -p /opt/chrome /opt/chromedriver
 
-# Fetch the latest stable version number
-RUN LATEST_VERSION=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-build.json | jq -r '.builds["stable"]') && \
-    echo "Latest Chrome for Testing version: $LATEST_VERSION" && \
-
-    # Download Chrome and ChromeDriver
-    wget https://storage.googleapis.com/chrome-for-testing/$LATEST_VERSION/linux64/chrome-linux64.zip -O /tmp/chrome-linux64.zip && \
-    wget https://storage.googleapis.com/chrome-for-testing/$LATEST_VERSION/linux64/chromedriver-linux64.zip -O /tmp/chromedriver-linux64.zip && \
+# Fetch the latest stable version of Chrome for Testing
+RUN LATEST_VERSION=$(curl -s https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-build.json | jq -r '.builds.stable') && \
+    echo "Latest Chrome Version: $LATEST_VERSION" && \
+    
+    # Download Chrome and Chromedriver
+    wget https://storage.googleapis.com/chrome-for-testing-public/$LATEST_VERSION/linux64/chrome-linux64.zip -O /tmp/chrome-linux64.zip && \
+    wget https://storage.googleapis.com/chrome-for-testing-public/$LATEST_VERSION/linux64/chromedriver-linux64.zip -O /tmp/chromedriver-linux64.zip && \
 
     # Unzip the downloaded files
     unzip /tmp/chrome-linux64.zip -d /opt/chrome/ && \
     unzip /tmp/chromedriver-linux64.zip -d /opt/chromedriver/ && \
 
-    # Remove the zip files
+    # Remove zip files
     rm /tmp/chrome-linux64.zip /tmp/chromedriver-linux64.zip && \
 
     # Move the binaries to the appropriate locations
