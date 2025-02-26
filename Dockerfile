@@ -1,4 +1,3 @@
-# Use a slim Python base image
 FROM python:3.10-slim
 
 # Install dependencies
@@ -20,17 +19,18 @@ RUN apt-get update && apt-get install -y \
     xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
-# Install the specific version of Google Chrome (133.0.6943.132)
-RUN wget https://dl.google.com/linux/direct/google-chrome-stable_133.0.6943.132-1_amd64.deb && \
-    apt install -y ./google-chrome-stable_133.0.6943.132-1_amd64.deb && \
-    rm google-chrome-stable_133.0.6943.132-1_amd64.deb
+# Download and install the specific version of Google Chrome (133.0.6943.141)
+RUN wget https://storage.googleapis.com/chrome-for-testing-public/133.0.6943.141/linux64/chrome-linux64.zip && \
+    unzip chrome-linux64.zip -d /opt/ && \
+    rm chrome-linux64.zip && \
+    mv /opt/google-chrome*/google-chrome /usr/bin/google-chrome && \
+    mv /opt/google-chrome*/chrome-sandbox /usr/bin/chrome-sandbox && \
+    chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox
 
-# Install the matching Chromedriver version (133.0.2)
-RUN CHROMEDRIVER_VERSION="133.0.2" && \
-    echo "Detected Chromedriver Version: $CHROMEDRIVER_VERSION" && \
-    wget --retry-connrefused --waitretry=1 --timeout=15 --tries=3 -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
-    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
-    rm /tmp/chromedriver.zip && \
+# Download and install the specific version of Chromedriver (133.0.6943.141)
+RUN wget https://storage.googleapis.com/chrome-for-testing-public/133.0.6943.141/linux64/chromedriver-linux64.zip && \
+    unzip chromedriver-linux64.zip -d /usr/local/bin/ && \
+    rm chromedriver-linux64.zip && \
     chmod +x /usr/local/bin/chromedriver
 
 # Set environment variables
