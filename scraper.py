@@ -15,6 +15,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.webdriver.chrome.service import Service
 
 
 logging.basicConfig(level=logging.INFO)
@@ -137,9 +138,12 @@ def setup_chromedriver():
     options.add_argument("--disable-features=TranslateUI")
     options.page_load_strategy = "eager"
     options.binary_location = "/usr/bin/google-chrome"
-    driver_path = "/usr/local/bin/chromedriver"
-    driver = webdriver.Chrome(options=options, executable_path=driver_path)
+
+    service = Service("/usr/local/bin/chromedriver")
+
+    driver = webdriver.Chrome(service=service, options=options)
     return driver
+    
 
     
 
