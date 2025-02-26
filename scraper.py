@@ -1,4 +1,5 @@
 import os
+import uuid
 import shutil
 import time
 import json
@@ -115,7 +116,7 @@ async def extract_download_links(movie_url):
         return None
 
 
- def setup_chromedriver():
+def setup_chromedriver():
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
