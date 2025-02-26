@@ -29,14 +29,15 @@ RUN echo "Starting download of Google Chrome..." && \
     ls -la /opt && \
     echo "Recursively listing /opt directory structure:" && \
     ls -R /opt && \
-    echo "Finding all files in /opt/chrome-linux64:" && \
-    find /opt/chrome-linux64 -type f && \
-    echo "Attempting to move google-chrome to /usr/bin/google-chrome..." && \
-    find /opt -name google-chrome && \
-    mv /opt/chrome-linux64/google-chrome /usr/bin/google-chrome && \
-    echo "Attempting to move chrome-sandbox to /usr/bin/chrome-sandbox..." && \
-    find /opt -name chrome-sandbox && \
-    mv /opt/chrome-linux64/chrome-sandbox /usr/bin/chrome-sandbox && \
+    echo "Finding all files in /opt/:" && \
+    find /opt -type f && \
+    echo "Attempting to find and move google-chrome..." && \
+    find /opt -name "google-chrome" && \
+    echo "Attempting to find and move chrome-sandbox..." && \
+    find /opt -name "chrome-sandbox" && \
+    echo "Moving google-chrome and chrome-sandbox to /usr/bin..." && \
+    mv /opt/*/google-chrome /usr/bin/google-chrome && \
+    mv /opt/*/chrome-sandbox /usr/bin/chrome-sandbox && \
     echo "Changing permissions for google-chrome and chrome-sandbox..." && \
     chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox && \
     echo "Google Chrome installation complete."
