@@ -20,9 +20,6 @@ RUN apt-get update && apt-get install -y \
     xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
-# Remove any existing version of Chrome
-RUN apt-get remove -y google-chrome-stable
-
 # Install the specific version of Google Chrome (133.0.6943.132)
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_133.0.6943.132-1_amd64.deb && \
     apt install -y ./google-chrome-stable_133.0.6943.132-1_amd64.deb && \
