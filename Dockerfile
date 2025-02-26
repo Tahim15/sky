@@ -29,7 +29,9 @@ RUN CHROME_VERSION=112.0.5615.138 && \
     if [ -z "$CHROMEDRIVER_VERSION" ]; then \
         echo "Error: Chromedriver version for Chrome $CHROME_VERSION not found"; exit 1; \
     fi && \
+    echo "Downloading Chromedriver version $CHROMEDRIVER_VERSION..." && \
     wget --retry-connrefused --waitretry=1 --timeout=15 --tries=3 -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
+    echo "Unzipping Chromedriver..." && \
     unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
     rm /tmp/chromedriver.zip && \
     chmod +x /usr/local/bin/chromedriver
