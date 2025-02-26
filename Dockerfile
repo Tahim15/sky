@@ -27,13 +27,15 @@ RUN echo "Starting download of Google Chrome..." && \
     rm /tmp/chrome-linux64.zip && \
     echo "List contents of /opt/:" && \
     ls -la /opt && \
-    echo "List contents of /opt/chrome-linux64:" && \
-    ls -la /opt/chrome-linux64 && \
+    echo "Recursively listing /opt directory structure:" && \
+    ls -R /opt && \
     echo "Finding all files in /opt/chrome-linux64:" && \
     find /opt/chrome-linux64 -type f && \
     echo "Attempting to move google-chrome to /usr/bin/google-chrome..." && \
+    find /opt -name google-chrome && \
     mv /opt/chrome-linux64/google-chrome /usr/bin/google-chrome && \
     echo "Attempting to move chrome-sandbox to /usr/bin/chrome-sandbox..." && \
+    find /opt -name chrome-sandbox && \
     mv /opt/chrome-linux64/chrome-sandbox /usr/bin/chrome-sandbox && \
     echo "Changing permissions for google-chrome and chrome-sandbox..." && \
     chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox && \
