@@ -116,6 +116,7 @@ async def extract_download_links(movie_url):
         return None
 
 
+  
 def setup_chromedriver():
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new")
@@ -140,15 +141,6 @@ def setup_chromedriver():
             shutil.rmtree(unique_dir, ignore_errors=True)
 
     return driver, cleanup
-
-driver, cleanup = setup_chromedriver()
-
-try:
-    driver.get("https://skymovieshd.video/movie/...")
-
-finally:
-    cleanup()  
-
     
 
 async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
