@@ -1,5 +1,6 @@
 FROM python:3.10-slim
 
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -18,31 +19,32 @@ RUN apt-get update && apt-get install -y \
     xdg-utils && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Google Chrome
 RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
     apt install -y ./google-chrome-stable_current_amd64.deb && \
     rm google-chrome-stable_current_amd64.deb
 
-# Fetch the latest Chrome version and corresponding Chromedriver
-RUN CHROME_VERSION=$(google-chrome-stable --version | awk '{print $3}' | sed 's/\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/') && \
-    echo "Using Chrome Version: $CHROME_VERSION" && \
-    CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION") && \
-    echo "Detected Chromedriver Version: $CHROMEDRIVER_VERSION" && \
-    if [ -z "$CHROMEDRIVER_VERSION" ]; then \
-        echo "Error: Chromedriver version for Chrome $CHROME_VERSION not found"; exit 1; \
-    fi && \
-    wget --retry-connrefused --waitretry=1 --timeout=15 --tries=3 -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip && \
+# Download and install the latest Chromedriver
+RUN CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE") && \
+    echo "Detected Latest Chromedriver Version: $CHROMEDRIVER_VERSION" && \
+    wget --retry-connrefused --waitretry=1 --timeout=15 --tries=3 -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip" -O /tmp/chromedriver.zip || { \
+        echo "Error: Failed to download Chromedriver from the URL"; exit 1; \
+    } && \
     unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
     rm /tmp/chromedriver.zip && \
     chmod +x /usr/local/bin/chromedriver
 
+# Set environment variables
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
 
 WORKDIR /usr/src/app
 
+# Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the rest of your app
 COPY . .
 
 EXPOSE 8087
