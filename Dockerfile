@@ -24,9 +24,9 @@ RUN wget https://storage.googleapis.com/chrome-for-testing-public/133.0.6943.141
     unzip /tmp/chrome-linux64.zip -d /opt/ && \
     rm /tmp/chrome-linux64.zip && \
     ls -la /opt && \
-    ls -la /opt/google-chrome-stable* && \
-    mv /opt/google-chrome-stable*/google-chrome /usr/bin/google-chrome && \
-    mv /opt/google-chrome-stable*/chrome-sandbox /usr/bin/chrome-sandbox && \
+    ls -la /opt/chrome-linux64 && \  # Correct the path here
+    mv /opt/chrome-linux64/google-chrome /usr/bin/google-chrome && \
+    mv /opt/chrome-linux64/chrome-sandbox /usr/bin/chrome-sandbox && \
     chmod +x /usr/bin/google-chrome /usr/bin/chrome-sandbox
 
 # Install Chromedriver
