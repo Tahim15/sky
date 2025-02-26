@@ -136,11 +136,11 @@ def setup_chromedriver():
     options.add_argument("--no-first-run")
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--disable-features=TranslateUI")
+    options.add_argument(f"--user-data-dir=/tmp/chrome-user-{os.getpid()}")  
     options.page_load_strategy = "eager"
     options.binary_location = "/usr/bin/google-chrome"
 
     service = Service("/usr/local/bin/chromedriver")
-
     driver = webdriver.Chrome(service=service, options=options)
     return driver
     
