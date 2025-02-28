@@ -1,4 +1,4 @@
-pyrogram==2.0.106
+git+https://github.com/xkunal01/pyrofork-old
 tgcrypto
 beautifulsoup4
 httpx
