@@ -3,7 +3,7 @@ import json
 import logging
 import asyncio
 import base64
-import httpx
+import tls_client  # ✅ Use TLS Client for Cloudflare bypass
 from urllib.parse import parse_qs, urlparse
 from config import *
 from pyrogram import Client, enums
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 # Constants
 SKYMOVIESHD_URL = "https://skymovieshd.farm/"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 }
 
 MOVIES_FILE = "data/movies.json"
@@ -37,47 +37,49 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links
+# Bypass HubDrive links using TLS Client
 async def hubdrive_bypass(hubdrive_url: str) -> str:
     try:
-        async with httpx.AsyncClient(cookies={"crypt": HUBDRIVE_CRYPT}, timeout=30) as client:
-            file_id = hubdrive_url.rstrip('/').split('/')[-1]
-            ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
+        session = tls_client.Session(client_identifier="chrome_119")  # ✅ Mimic Chrome Browser
 
-            headers = {
-                "User-Agent": HEADERS["User-Agent"],
-                "Referer": hubdrive_url,
-                "X-Requested-With": "XMLHttpRequest"
-            }
+        file_id = hubdrive_url.rstrip('/').split('/')[-1]
+        ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
 
-            response = await client.post(ajax_url, headers=headers, data={"id": file_id})
+        headers = {
+            "User-Agent": HEADERS["User-Agent"],
+            "Referer": hubdrive_url,
+            "X-Requested-With": "XMLHttpRequest",
+        }
 
-            if response.status_code == 403:
-                logging.error("❌ 403 Forbidden: HubDrive blocked the request!")
-                return None
+        data = {"id": file_id}
+        response = session.post(ajax_url, headers=headers, data=data, cookies={"crypt": HUBDRIVE_CRYPT})
 
-            if response.status_code != 200:
-                logging.error(f"❌ HubDrive request failed! Status: {response.status_code}, Response: {response.text}")
-                return None
+        if response.status_code == 403:
+            logging.error("❌ 403 Forbidden: HubDrive blocked the request!")
+            return None
 
-            response_data = response.json()
-            file_url = response_data.get("file", "").strip()  # Strip whitespace
+        if response.status_code != 200:
+            logging.error(f"❌ HubDrive request failed! Status: {response.status_code}, Response: {response.text}")
+            return None
 
-            if not file_url:
-                return None
+        response_data = response.json()
+        file_url = response_data.get("file", "").strip()  # Strip whitespace
 
-            # Extract and decode Base64 Google Drive link
-            parsed_url = urlparse(file_url)
-            query_params = parse_qs(parsed_url.query)
-            encoded_gd_link = query_params.get("gd", [""])[0]
+        if not file_url:
+            return None
 
-            if not encoded_gd_link:
-                return None
+        # Extract and decode Base64 Google Drive link
+        parsed_url = urlparse(file_url)
+        query_params = parse_qs(parsed_url.query)
+        encoded_gd_link = query_params.get("gd", [""])[0]
 
-            decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8").strip()
+        if not encoded_gd_link:
+            return None
 
-            await asyncio.sleep(60)  # Rate limit: 1 link per minute
-            return decoded_gd_link
+        decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8").strip()
+
+        await asyncio.sleep(60)  # Rate limit: 1 link per minute
+        return decoded_gd_link
 
     except Exception as e:
         logging.error(f"❌ HubDrive Bypass Error: {str(e)}")
@@ -86,8 +88,9 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
 # Extract download links from SkyMoviesHD
 async def extract_download_links(movie_url):
     try:
-        async with httpx.AsyncClient(headers=HEADERS) as client:
-            response = await client.get(movie_url)
+        session = tls_client.Session(client_identifier="chrome_119")
+
+        response = session.get(movie_url, headers=HEADERS)
 
         if response.status_code != 200:
             logging.error(f"❌ Failed to load movie page {movie_url} (Status Code: {response.status_code})")
@@ -100,20 +103,19 @@ async def extract_download_links(movie_url):
         hubdrive_links = []
 
         # Find Howblogs links
-        async with httpx.AsyncClient(headers=HEADERS) as client:
-            for link in soup.select('a[href*="howblogs.xyz"]'):
-                href = link['href']
-                logging.info(f"🔗 Found Howblogs Link: {href}")
+        for link in soup.select('a[href*="howblogs.xyz"]'):
+            href = link['href']
+            logging.info(f"🔗 Found Howblogs Link: {href}")
 
-                # Fetch Howblogs page
-                resp = await client.get(href)
-                nsoup = BeautifulSoup(resp.text, 'html.parser')
+            # Fetch Howblogs page
+            resp = session.get(href, headers=HEADERS)
+            nsoup = BeautifulSoup(resp.text, 'html.parser')
 
-                # Extract HubDrive links
-                for dl_link in nsoup.select('a[href*="hubdrive"]'):
-                    hubdrive_url = dl_link['href'].strip()  # Strip any whitespace
-                    logging.info(f"✅ Found HubDrive Link: {hubdrive_url}")
-                    hubdrive_links.append(hubdrive_url)
+            # Extract HubDrive links
+            for dl_link in nsoup.select('a[href*="hubdrive"]'):
+                hubdrive_url = dl_link['href'].strip()  # Strip any whitespace
+                logging.info(f"✅ Found HubDrive Link: {hubdrive_url}")
+                hubdrive_links.append(hubdrive_url)
 
         if not hubdrive_links:
             logging.warning(f"⚠️ No HubDrive links found for {movie_url}")
@@ -134,8 +136,8 @@ async def extract_download_links(movie_url):
 # Get movie links from SkyMoviesHD
 async def get_movie_links():
     try:
-        async with httpx.AsyncClient(headers=HEADERS) as client:
-            response = await client.get(SKYMOVIESHD_URL)
+        session = tls_client.Session(client_identifier="chrome_119")
+        response = session.get(SKYMOVIESHD_URL, headers=HEADERS)
 
         if response.status_code != 200:
             logging.error(f"❌ Failed to load SkyMoviesHD (Status Code: {response.status_code})")
