@@ -35,7 +35,7 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Extract Gofile.io and Streamtape.to links
+# Extract Gofile.io & Streamtape.to links from Howblogs.xyz
 async def extract_download_links(movie_url):
     try:
         session = tls_client.Session(client_identifier="chrome_119")
@@ -50,19 +50,36 @@ async def extract_download_links(movie_url):
         title_section = soup.select_one('div[class^="Robiul"]')
         movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
 
-        download_links = []
+        howblogs_links = []
 
-        # Find Gofile.io & Streamtape.to links
-        for link in soup.select('a[href*="gofile.io"], a[href*="streamtape.to"]'):
+        # Find Howblogs links
+        for link in soup.select('a[href*="howblogs.xyz"]'):
             href = link['href']
-            logging.info(f"✅ Found Direct Link: {href}")
-            download_links.append(href)
+            logging.info(f"🔗 Found Howblogs Link: {href}")
+            howblogs_links.append(href)
 
-        if not download_links:
-            logging.warning(f"⚠️ No Gofile or Streamtape links found for {movie_url}")
+        if not howblogs_links:
+            logging.warning(f"⚠️ No Howblogs links found for {movie_url}")
             return None
 
-        return [{"file_name": "Unknown File", "download_links": download_links}]
+        direct_links = []
+        
+        for howblogs_url in howblogs_links:
+            # Fetch Howblogs page
+            resp = session.get(howblogs_url, headers=HEADERS)
+            nsoup = BeautifulSoup(resp.text, 'html.parser')
+
+            # Extract Gofile.io & Streamtape.to links
+            file_links = []
+            for dl_link in nsoup.select('a[href*="gofile.io"], a[href*="streamtape.to"]'):
+                file_url = dl_link['href'].strip()  # Remove any whitespace
+                logging.info(f"✅ Found Direct Link: {file_url}")
+                file_links.append(file_url)
+
+            if file_links:
+                direct_links.append({"file_name": "Unknown File", "download_links": file_links})
+
+        return direct_links if direct_links else None
 
     except Exception as e:
         logging.error(f"❌ Error extracting download links from {movie_url}: {e}")
