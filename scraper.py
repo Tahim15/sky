@@ -66,7 +66,7 @@ async def extract_download_links(movie_url):
 
         if unique_links:
             return [{
-                "file_name": "🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>SkyMoviesHd</a>",
+                "file_name": "<b>🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>SkyMoviesHd ✅</a></b>",
                 "download_links": list(unique_links)
             }]
 
