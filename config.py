@@ -10,6 +10,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN", "7524524705:AAH7aBrV5cAZNRFIx3ZZhO72kbi4
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002398179296"))
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 30))  # Check every 5 minutes
 CAPTCHA_API_KEY = os.environ.get("CAPTCHA_API_KEY", "42341e63a823ae375e6bef411db7ce85")
+HUBDRIVE_CRYPT = "QklvMlJxVlhnV0gwVHBoczBudFhzUmhjaEExaGs5UG01K1R6RnFLYnN3az0%3D"
 
 PORT = os.environ.get("PORT", "8087")
 TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "4"))
