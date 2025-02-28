@@ -2,8 +2,9 @@ import os
 import json
 import logging
 import asyncio
-import requests
 import base64
+import cloudscraper
+import requests
 from urllib.parse import parse_qs, urlparse
 from config import *
 from pyrogram import Client, enums
@@ -37,16 +38,16 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links
+# Bypass HubDrive links using cloudscraper
 def hubdrive_bypass(hubdrive_url: str) -> str:
     try:
-        session = requests.Session()
-        session.cookies.update({'crypt': HUBDRIVE_CRYPT})
-
+        scraper = cloudscraper.create_scraper()
+        scraper.cookies.update({'crypt': HUBDRIVE_CRYPT})  # Use stored crypt cookie
+        
         file_id = hubdrive_url.rstrip('/').split('/')[-1]
         ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
 
-        response = session.post(ajax_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': file_id})
+        response = scraper.post(ajax_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': file_id})
 
         if response.status_code != 200:
             logging.error(f"❌ HubDrive request failed! Status: {response.status_code}, Response: {response.text}")
