@@ -1,23 +1,13 @@
 import os
-import uuid
-import shutil
-import time
 import json
-import random
 import logging
 import asyncio
 import requests
+from urllib.parse import parse_qs, urlparse
+import base64
 from config import *
-from pyrogram import *
+from pyrogram import Client, enums
 from bs4 import BeautifulSoup
-from selenium import webdriver
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
-from selenium.webdriver.chrome.service import Service
-
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,181 +33,93 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-async def extract_downlo_links(movie_url):
+def hubdrive_bypass(hubdrive_url: str, hubdrive_crypt: str) -> str:
+    session = requests.Session()
+    session.cookies.update({'crypt': hubdrive_crypt})  
+
+    file_id = hubdrive_url.rstrip('/').split('/')[-1]  
+    ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
+    response = session.post(ajax_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': file_id})
+
+    try:
+        response_data = response.json()
+        file_url = response_data.get('file', '')
+
+        if not file_url:
+            return None
+
+        parsed_url = urlparse(file_url)
+        query_params = parse_qs(parsed_url.query)
+        encoded_gd_link = query_params.get('gd', [''])[0]
+
+        if not encoded_gd_link:
+            return None
+
+        decoded_gd_link = base64.b64decode(encoded_gd_link).decode('utf-8')
+        return decoded_gd_link
+
+    except Exception as e:
+        logging.error(f"HubDrive bypass error: {e}")
+        return None
+
+async def extract_download_links(movie_url, hubdrive_crypt):
     try:
         response = requests.get(movie_url, headers=HEADERS)
         if response.status_code != 200:
             logging.error(f"Failed to load movie page {movie_url} (Status Code: {response.status_code})")
-            return None        
+            return None  
+
         soup = BeautifulSoup(response.text, 'html.parser')
         title_section = soup.select_one('div[class^="Robiul"]')
         movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
+
         _cache = set()
-        hubcloud_links = []        
+        hubdrive_links = []
+
         for link in soup.select('a[href*="howblogs.xyz"]'):
             href = link['href']
             if href in _cache:
                 continue
             _cache.add(href)
+
             resp = requests.get(href, headers=HEADERS)
             nsoup = BeautifulSoup(resp.text, 'html.parser')
             atag = nsoup.select('div[class="cotent-box"] > a[href]')
-            for dl_link in atag:
-                hubcloud_url = dl_link['href']
-                if "hubcloud" in hubcloud_url:
-                    hubcloud_links.append(hubcloud_url)
-        if not hubcloud_links:
-            logging.warning(f"No HubCloud links found for {movie_url}")
-            return None
-        direct_links = await get_direct_hubcloud_link(hubcloud_links[0])
-        if not direct_links:
-            return None
-        return direct_links
-    except Exception as e:
-        logging.error(f"Error extracting download links from {movie_url}: {e}")
-        return None
 
-async def extract_download_links(movie_url):
-    try:
-        response = requests.get(movie_url, headers=HEADERS)
-        if response.status_code != 200:
-            logging.error(f"Failed to load movie page {movie_url} (Status Code: {response.status_code})")
-            return None                    
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="Robiul"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"        
-        _cache = set()
-        hubcloud_links = []                
-        for link in soup.select('a[href*="howblogs.xyz"]'):
-            href = link['href']
-            if href in _cache:
-                continue
-            _cache.add(href)            
-            resp = requests.get(href, headers=HEADERS)
-            nsoup = BeautifulSoup(resp.text, 'html.parser')
-            atag = nsoup.select('div[class="cotent-box"] > a[href]')            
             for dl_link in atag:
-                hubcloud_url = dl_link['href']
-                if "hubcloud" in hubcloud_url:
-                    hubcloud_links.append(hubcloud_url)        
-        if not hubcloud_links:
-            logging.warning(f"No HubCloud links found for {movie_url}")
-            return None        
+                hubdrive_url = dl_link['href']
+                if "hubdrive" in hubdrive_url:
+                    hubdrive_links.append(hubdrive_url)
+
+        if not hubdrive_links:
+            logging.warning(f"No HubDrive links found for {movie_url}")
+            return None  
+
         direct_links = []
-        for hubcloud_url in hubcloud_links:
-            extracted_data = await get_direct_hubcloud_link(hubcloud_url)
-            if isinstance(extracted_data, dict) and "file_name" in extracted_data and "download_links" in extracted_data:
-                direct_links.append(extracted_data)        
+        for hubdrive_url in hubdrive_links:
+            final_link = hubdrive_bypass(hubdrive_url, hubdrive_crypt)
+            if final_link:
+                direct_links.append(final_link)
+
         if not direct_links:
-            return None        
-        return direct_links
+            return None
+
+        return {"movie_title": movie_title, "download_links": direct_links}
+
     except Exception as e:
         logging.error(f"Error extracting download links from {movie_url}: {e}")
         return None
 
-def setup_chromedriver():
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-popup-blocking")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--ignore-certificate-errors")
-    options.page_load_strategy = "eager"
-
-    service = Service("/usr/local/bin/chromedriver")
-    driver = webdriver.Chrome(service=service, options=options)
-
-    def cleanup():
-        driver.quit()
-
-    return driver, cleanup
-  
-
-    
-
-async def get_direct_hubcloud_link(hubcloud_url, max_retries=5):
-    os.system("pkill -f chrome || true")
-    wd = setup_chromedriver()    
-    try:
-        logging.info(f"🖇️ Opening {hubcloud_url}...")
-        wd.get(hubcloud_url)        
-        try:
-            WebDriverWait(wd, 20).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-            logging.info("✅ Page is fully loaded.")
-        except TimeoutException:
-            logging.error("❌ Page did not load within 20 seconds!")
-            return []
-        file_name = "Unknown File"
-        try:
-            file_name_element = WebDriverWait(wd, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'card-header')]"))
-            )
-            file_name = file_name_element.text.strip()
-            logging.info(f"📁 Extracted File Name: {file_name}")
-        except TimeoutException:
-            logging.warning("⚠️ File name not found!")            
-        retries = 0
-        while retries < max_retries:
-            current_url = wd.current_url
-            logging.info(f"📌 Current URL: {current_url}")            
-            if "hubcloud" in current_url:
-                try:
-                    logging.info("🔍 Searching for 'Download' Button...")
-                    download_button = WebDriverWait(wd, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, "//a[@id='download']"))
-                    )
-                    logging.info("✅ Found 'Download' Button. Clicking...")
-                    wd.execute_script("arguments[0].click();", download_button)
-                    time.sleep(1)
-                except TimeoutException:
-                    logging.warning("⚠️ Download button not found!")
-                    retries += 1
-                    continue
-            while len(wd.window_handles) > 1:
-                wd.switch_to.window(wd.window_handles[-1])
-                time.sleep(1.5)
-                wd.close()
-                wd.switch_to.window(wd.window_handles[0])
-            if "hubcloud" not in wd.current_url:
-                try:
-                    logging.info(f"✅ New Page Detected: {wd.current_url}")
-                    final_buttons = wd.find_elements(By.XPATH, "//a[contains(@class, 'btn')]")
-                    final_links = [
-                        btn.get_attribute("href")
-                        for btn in final_buttons
-                        if "Download [FSL Server]" in btn.text or "Download [PixelServer : 2]" in btn.text
-                    ]
-                    if final_links:
-                        logging.info(f"✅ Extracted Direct Download Links: {final_links}")
-                        return {"file_name": file_name, "download_links": final_links}
-                    else:
-                        logging.warning("⚠️ No valid download buttons found!")
-                        retries += 1
-                        wd.back()
-                        logging.info(f"✅ Again New Page Detected: {wd.current_url}")
-                        continue
-                except Exception as e:
-                    logging.warning(f"⚠️ Error extracting final links: {e}")
-            retries += 1
-        logging.error("❌ Max retries reached. Skipping this URL.")
-        return {"file_name": file_name, "download_links": []}
-    except Exception as e:
-        logging.error(f"❌ Error processing {hubcloud_url}: {e}")
-        return {"file_name": "Unknown File", "download_links": []}
-    finally:
-        wd.quit()
-                  
 def get_movie_links():
     try:
         response = requests.get(SKYMOVIESHD_URL, headers=HEADERS)
         if response.status_code != 200:
             logging.error(f"Failed to load SkyMoviesHD (Status Code: {response.status_code})")
             return []
+        
         soup = BeautifulSoup(response.text, "html.parser")
         movie_links = []
+
         for movie in soup.find_all("div", class_="Fmvideo"):
             a_tag = movie.find('a')
             if a_tag:
@@ -225,49 +127,62 @@ def get_movie_links():
                 movie_url = a_tag['href']
                 if not movie_url.startswith("http"):
                     movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
-                movie_links.append({"title": title, "link": movie_url})        
+                movie_links.append({"title": title, "link": movie_url})
+
         return movie_links
+
     except Exception as e:
         logging.error(f"Error getting movie links: {e}")
         return []
 
-async def scrape_skymovieshd(client):
+async def scrape_skymovieshd(client, hubdrive_crypt):
     posted_movies = load_posted_movies() 
-    movies = get_movie_links()     
-    for index, movie in enumerate(movies, start=1):
+    movies = get_movie_links()  
+
+    for movie in movies:
         if movie['title'] in posted_movies:
             logging.info(f"⏩ Skipping {movie['title']} (Already Posted)")
             continue 
+
         logging.info(f"🔍 Processing: {movie['title']}")
-        direct_links = await extract_download_links(movie['link'])
+        direct_links = await extract_download_links(movie['link'], hubdrive_crypt)
+
         if not direct_links:
             logging.warning(f"⚠️ No Valid Download Links Found For {movie['title']}.")
             continue
+
         message = f"<b>Recently Posted Movie ✅</b>\n\n"
-        message += f"<b>{movie['title']}</b>\n\n"
+        message += f"<b>{direct_links['movie_title']}</b>\n\n"
         message += f"<b>Download Links:</b>\n\n"
-        for data in direct_links:
-            if isinstance(data, dict) and "file_name" in data and "download_links" in data:
-                file_name = data["file_name"]
-                download_links = data["download_links"]
-                message += f"<b>{file_name}</b>\n"
-                if download_links:
-                    for i, link in enumerate(download_links, start=1):
-                        message += f"{i}. {link}\n"
-                else:
-                    message += "❌ No Download Links Available\n"
-                message += "\n"
+
+        for i, link in enumerate(direct_links["download_links"], start=1):
+            message += f"{i}. {link}\n"
+
         try:
             await client.send_message(chat_id=CHANNEL_ID, text=message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
-            logging.info(f"✅ Posted: {movie['title']}")
-            posted_movies.append(movie['title'])
+            logging.info(f"✅ Posted: {direct_links['movie_title']}")
+            posted_movies.append(direct_links['movie_title'])
             save_posted_movies(posted_movies)
+
         except Exception as e:
-            logging.error(f"❌ Failed To Post {movie['title']}: {e}")
+            logging.error(f"❌ Failed To Post {direct_links['movie_title']}: {e}")
+
         await asyncio.sleep(3)
-        
-async def check_new_movies(client):
+
+async def check_new_movies(client, hubdrive_crypt):
     while True:
         logging.info("Checking for new movies...")
-        await scrape_skymovieshd(client) 
+        await scrape_skymovieshd(client, hubdrive_crypt)
         await asyncio.sleep(CHECK_INTERVAL)
+
+if __name__ == "__main__":
+    print("=== HubDrive Bypass Script ===")
+    hubdrive_crypt = input("Enter 'crypt' cookie value: ").strip()
+
+    app = Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+    async def run_bot():
+        async with app:
+            await check_new_movies(app, hubdrive_crypt)
+
+    asyncio.run(run_bot())
