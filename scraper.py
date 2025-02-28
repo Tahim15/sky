@@ -37,7 +37,7 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links (Fixing Illegal Header Error)
+# Bypass HubDrive links
 async def hubdrive_bypass(hubdrive_url: str) -> str:
     try:
         async with httpx.AsyncClient(cookies={"crypt": HUBDRIVE_CRYPT}, timeout=30) as client:
@@ -53,7 +53,7 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
             response = await client.post(ajax_url, headers=headers, data={"id": file_id})
 
             if response.status_code == 403:
-                logging.error("❌ 403 Forbidden: Request blocked by HubDrive!")
+                logging.error("❌ 403 Forbidden: HubDrive blocked the request!")
                 return None
 
             if response.status_code != 200:
@@ -61,7 +61,7 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
                 return None
 
             response_data = response.json()
-            file_url = response_data.get("file", "").strip()
+            file_url = response_data.get("file", "").strip()  # Strip whitespace
 
             if not file_url:
                 return None
@@ -69,13 +69,14 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
             # Extract and decode Base64 Google Drive link
             parsed_url = urlparse(file_url)
             query_params = parse_qs(parsed_url.query)
-            encoded_gd_link = query_params.get("gd", [""])[0].strip()
+            encoded_gd_link = query_params.get("gd", [""])[0]
 
             if not encoded_gd_link:
                 return None
 
             decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8").strip()
 
+            await asyncio.sleep(60)  # Rate limit: 1 link per minute
             return decoded_gd_link
 
     except Exception as e:
@@ -110,7 +111,7 @@ async def extract_download_links(movie_url):
 
                 # Extract HubDrive links
                 for dl_link in nsoup.select('a[href*="hubdrive"]'):
-                    hubdrive_url = dl_link['href']
+                    hubdrive_url = dl_link['href'].strip()  # Strip any whitespace
                     logging.info(f"✅ Found HubDrive Link: {hubdrive_url}")
                     hubdrive_links.append(hubdrive_url)
 
