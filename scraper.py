@@ -39,7 +39,6 @@ def save_posted_movies(movies):
 async def extract_download_links(movie_url):
     try:
         session = tls_client.Session(client_identifier="chrome_119")
-
         response = session.get(movie_url, headers=HEADERS)
 
         if response.status_code != 200:
@@ -50,36 +49,28 @@ async def extract_download_links(movie_url):
         title_section = soup.select_one('div[class^="Robiul"]')
         movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
 
-        howblogs_links = []
-
-        # Find Howblogs links
-        for link in soup.select('a[href*="howblogs.xyz"]'):
-            href = link['href']
-            logging.info(f"🔗 Found Howblogs Link: {href}")
-            howblogs_links.append(href)
-
+        howblogs_links = [link['href'] for link in soup.select('a[href*="howblogs.xyz"]')]
         if not howblogs_links:
             logging.warning(f"⚠️ No Howblogs links found for {movie_url}")
             return None
 
-        direct_links = []
+        unique_links = set()
         
         for howblogs_url in howblogs_links:
-            # Fetch Howblogs page
             resp = session.get(howblogs_url, headers=HEADERS)
             nsoup = BeautifulSoup(resp.text, 'html.parser')
 
             # Extract Gofile.io & Streamtape.to links
-            file_links = []
             for dl_link in nsoup.select('a[href*="gofile.io"], a[href*="streamtape.to"]'):
-                file_url = dl_link['href'].strip()  # Remove any whitespace
-                logging.info(f"✅ Found Direct Link: {file_url}")
-                file_links.append(file_url)
+                unique_links.add(dl_link['href'].strip())
 
-            if file_links:
-                direct_links.append({"file_name": "Unknown File", "download_links": file_links})
+        if unique_links:
+            return [{
+                "file_name": "🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>SkyMoviesHd</a>",
+                "download_links": list(unique_links)
+            }]
 
-        return direct_links if direct_links else None
+        return None
 
     except Exception as e:
         logging.error(f"❌ Error extracting download links from {movie_url}: {e}")
@@ -133,7 +124,7 @@ async def scrape_skymovieshd(client):
         message += f"<b>Download Links:</b>\n\n"
 
         for data in direct_links:
-            message += f"<b>{data['file_name']}</b>\n"
+            message += f"{data['file_name']}\n"
             for i, link in enumerate(data['download_links'], start=1):
                 message += f"{i}. {link}\n"
             message += "\n"
