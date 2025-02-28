@@ -3,6 +3,5 @@ tgcrypto
 beautifulsoup4
 requests
 asyncio
-selenium
 aiohttp
-undetected-chromedriver
+cloudscraped
