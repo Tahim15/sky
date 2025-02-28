@@ -3,7 +3,7 @@ import json
 import logging
 import asyncio
 import base64
-import httpx  # Replaced requests with httpx
+import httpx
 from urllib.parse import parse_qs, urlparse
 from config import *
 from pyrogram import Client, enums
@@ -37,7 +37,7 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links (Rate-limited: 1 per minute)
+# Bypass HubDrive links (Fixing Illegal Header Error)
 async def hubdrive_bypass(hubdrive_url: str) -> str:
     try:
         async with httpx.AsyncClient(cookies={"crypt": HUBDRIVE_CRYPT}, timeout=30) as client:
@@ -61,7 +61,7 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
                 return None
 
             response_data = response.json()
-            file_url = response_data.get("file", "")
+            file_url = response_data.get("file", "").strip()
 
             if not file_url:
                 return None
@@ -69,14 +69,12 @@ async def hubdrive_bypass(hubdrive_url: str) -> str:
             # Extract and decode Base64 Google Drive link
             parsed_url = urlparse(file_url)
             query_params = parse_qs(parsed_url.query)
-            encoded_gd_link = query_params.get("gd", [""])[0]
+            encoded_gd_link = query_params.get("gd", [""])[0].strip()
 
             if not encoded_gd_link:
                 return None
 
-            decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8")
-
-            await asyncio.sleep(60)  # Limit bypassing to one link per minute
+            decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8").strip()
 
             return decoded_gd_link
 
