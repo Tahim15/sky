@@ -2,9 +2,7 @@ import os
 import json
 import logging
 import asyncio
-import base64
 import tls_client  # ✅ Use TLS Client for Cloudflare bypass
-from urllib.parse import parse_qs, urlparse
 from config import *
 from pyrogram import Client, enums
 from bs4 import BeautifulSoup
@@ -37,55 +35,7 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links using TLS Client
-async def hubdrive_bypass(hubdrive_url: str) -> str:
-    try:
-        session = tls_client.Session(client_identifier="chrome_119")  # ✅ Mimic Chrome Browser
-
-        file_id = hubdrive_url.rstrip('/').split('/')[-1]
-        ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
-
-        headers = {
-            "User-Agent": HEADERS["User-Agent"],
-            "Referer": hubdrive_url,
-            "X-Requested-With": "XMLHttpRequest",
-        }
-
-        data = {"id": file_id}
-        response = session.post(ajax_url, headers=headers, data=data, cookies={"crypt": HUBDRIVE_CRYPT})
-
-        if response.status_code == 403:
-            logging.error("❌ 403 Forbidden: HubDrive blocked the request!")
-            return None
-
-        if response.status_code != 200:
-            logging.error(f"❌ HubDrive request failed! Status: {response.status_code}, Response: {response.text}")
-            return None
-
-        response_data = response.json()
-        file_url = response_data.get("file", "").strip()  # Strip whitespace
-
-        if not file_url:
-            return None
-
-        # Extract and decode Base64 Google Drive link
-        parsed_url = urlparse(file_url)
-        query_params = parse_qs(parsed_url.query)
-        encoded_gd_link = query_params.get("gd", [""])[0]
-
-        if not encoded_gd_link:
-            return None
-
-        decoded_gd_link = base64.b64decode(encoded_gd_link).decode("utf-8").strip()
-
-        await asyncio.sleep(60)  # Rate limit: 1 link per minute
-        return decoded_gd_link
-
-    except Exception as e:
-        logging.error(f"❌ HubDrive Bypass Error: {str(e)}")
-        return None
-
-# Extract download links from SkyMoviesHD
+# Extract Gofile.io and Streamtape.to links
 async def extract_download_links(movie_url):
     try:
         session = tls_client.Session(client_identifier="chrome_119")
@@ -100,34 +50,19 @@ async def extract_download_links(movie_url):
         title_section = soup.select_one('div[class^="Robiul"]')
         movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
 
-        hubdrive_links = []
+        download_links = []
 
-        # Find Howblogs links
-        for link in soup.select('a[href*="howblogs.xyz"]'):
+        # Find Gofile.io & Streamtape.to links
+        for link in soup.select('a[href*="gofile.io"], a[href*="streamtape.to"]'):
             href = link['href']
-            logging.info(f"🔗 Found Howblogs Link: {href}")
+            logging.info(f"✅ Found Direct Link: {href}")
+            download_links.append(href)
 
-            # Fetch Howblogs page
-            resp = session.get(href, headers=HEADERS)
-            nsoup = BeautifulSoup(resp.text, 'html.parser')
-
-            # Extract HubDrive links
-            for dl_link in nsoup.select('a[href*="hubdrive"]'):
-                hubdrive_url = dl_link['href'].strip()  # Strip any whitespace
-                logging.info(f"✅ Found HubDrive Link: {hubdrive_url}")
-                hubdrive_links.append(hubdrive_url)
-
-        if not hubdrive_links:
-            logging.warning(f"⚠️ No HubDrive links found for {movie_url}")
+        if not download_links:
+            logging.warning(f"⚠️ No Gofile or Streamtape links found for {movie_url}")
             return None
 
-        direct_links = []
-        for hubdrive_url in hubdrive_links:
-            extracted_link = await hubdrive_bypass(hubdrive_url)
-            if extracted_link:
-                direct_links.append({"file_name": "Unknown File", "download_links": [extracted_link]})
-
-        return direct_links if direct_links else None
+        return [{"file_name": "Unknown File", "download_links": download_links}]
 
     except Exception as e:
         logging.error(f"❌ Error extracting download links from {movie_url}: {e}")
