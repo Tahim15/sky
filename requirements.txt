@@ -4,4 +4,4 @@ beautifulsoup4
 requests
 asyncio
 aiohttp
-cloudscraped
+cloudscraper
