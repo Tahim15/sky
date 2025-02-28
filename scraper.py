@@ -37,8 +37,8 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Bypass HubDrive links using requests with session cookies
-def hubdrive_bypass(hubdrive_url: str) -> str:
+# Bypass HubDrive links (Rate-limited: 1 per minute)
+async def hubdrive_bypass(hubdrive_url: str) -> str:
     try:
         session = requests.Session()
         session.cookies.set('crypt', HUBDRIVE_CRYPT, domain='.hubdrive.fit')  # Use stored crypt cookie
@@ -67,26 +67,13 @@ def hubdrive_bypass(hubdrive_url: str) -> str:
             return None
 
         decoded_gd_link = base64.b64decode(encoded_gd_link).decode('utf-8')
+        
+        await asyncio.sleep(60)  # Limit bypassing to one link per minute
+
         return decoded_gd_link
 
     except Exception as e:
         logging.error(f"❌ HubDrive Bypass Error: {str(e)}")
-        return None
-
-# Get final HubDrive download link
-async def get_direct_hubdrive_link(hubdrive_url):
-    try:
-        logging.info(f"🖇️ Processing HubDrive link: {hubdrive_url}")
-        final_link = hubdrive_bypass(hubdrive_url)
-
-        if not final_link:
-            logging.error(f"❌ Failed to bypass HubDrive link: {hubdrive_url}")
-            return None
-
-        return {"file_name": "Unknown File", "download_links": [final_link]}
-
-    except Exception as e:
-        logging.error(f"❌ Error processing {hubdrive_url}: {e}")
         return None
 
 # Extract download links from SkyMoviesHD
@@ -124,9 +111,9 @@ async def extract_download_links(movie_url):
 
         direct_links = []
         for hubdrive_url in hubdrive_links:
-            extracted_data = await get_direct_hubdrive_link(hubdrive_url)
-            if extracted_data:
-                direct_links.append(extracted_data)
+            extracted_link = await hubdrive_bypass(hubdrive_url)
+            if extracted_link:
+                direct_links.append({"file_name": "Unknown File", "download_links": [extracted_link]})
 
         return direct_links if direct_links else None
 
@@ -195,3 +182,11 @@ async def check_new_movies(client):
     while True:
         await scrape_skymovieshd(client)
         await asyncio.sleep(300)  # Check every 5 minutes
+
+# Run the bot
+async def main():
+    async with Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN) as app:
+        await check_new_movies(app)
+
+if __name__ == "__main__":
+    asyncio.run(main())
