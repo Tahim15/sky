@@ -1,6 +1,7 @@
 FROM python:3.10-slim
 
 # Install required dependencies
+RUN apt-get update && apt-get install -y git
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
