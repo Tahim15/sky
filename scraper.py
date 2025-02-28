@@ -29,7 +29,7 @@ def load_posted_movies():
         with open(MOVIES_FILE, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return [] 
+        return []
 
 def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
@@ -39,15 +39,19 @@ def hubdrive_bypass(hubdrive_url: str) -> str:
     """
     Bypasses HubDrive link and retrieves the final Google Drive download link.
     """
-    session = requests.Session()
-    session.cookies.update({'crypt': HUBDRIVE_CRYPT})  # Set the 'crypt' cookie
-
-    file_id = hubdrive_url.rstrip('/').split('/')[-1]  # Extract file ID
-
-    ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
-    response = session.post(ajax_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': file_id})
-
     try:
+        session = requests.Session()
+        session.cookies.update({'crypt': HUBDRIVE_CRYPT})  # Set the 'crypt' cookie
+
+        file_id = hubdrive_url.rstrip('/').split('/')[-1]  # Extract file ID
+        ajax_url = "https://hubdrive.fit/ajax.php?ajax=direct-download"
+
+        response = session.post(ajax_url, headers={'x-requested-with': 'XMLHttpRequest'}, data={'id': file_id})
+
+        if response.status_code != 200:
+            logging.error(f"❌ HubDrive request failed! Status: {response.status_code}, Response: {response.text}")
+            return "Error: Failed to fetch link"
+
         response_data = response.json()
         file_url = response_data.get('file', '')
 
@@ -70,15 +74,14 @@ def hubdrive_bypass(hubdrive_url: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
-async def get_direct_hubcloud_link(hubcloud_url):
+async def get_direct_hubdrive_link(hubdrive_url):
     """
     Extracts the final download link from a HubDrive URL.
     """
     try:
-        logging.info(f"🖇️ Processing HubDrive link: {hubcloud_url}")
+        logging.info(f"🖇️ Processing HubDrive link: {hubdrive_url}")
 
-        # Use the new bypass function
-        final_link = hubdrive_bypass(hubcloud_url)
+        final_link = hubdrive_bypass(hubdrive_url)
 
         if "Error" in final_link:
             logging.error(f"❌ Failed to bypass HubDrive link: {final_link}")
@@ -87,7 +90,7 @@ async def get_direct_hubcloud_link(hubcloud_url):
         return {"file_name": "Unknown File", "download_links": [final_link]}
 
     except Exception as e:
-        logging.error(f"❌ Error processing {hubcloud_url}: {e}")
+        logging.error(f"❌ Error processing {hubdrive_url}: {e}")
         return None
 
 async def extract_download_links(movie_url):
@@ -102,32 +105,41 @@ async def extract_download_links(movie_url):
                     
         soup = BeautifulSoup(response.text, 'html.parser')
         title_section = soup.select_one('div[class^="Robiul"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"        
+        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
+        
         _cache = set()
-        hubcloud_links = []                
+        hubdrive_links = []
+        
         for link in soup.select('a[href*="howblogs.xyz"]'):
             href = link['href']
             if href in _cache:
                 continue
-            _cache.add(href)            
+            _cache.add(href)
+            
             resp = requests.get(href, headers=HEADERS)
             nsoup = BeautifulSoup(resp.text, 'html.parser')
-            atag = nsoup.select('div[class="cotent-box"] > a[href]')            
+            atag = nsoup.select('div[class="content-box"] > a[href]')
+            
             for dl_link in atag:
-                hubcloud_url = dl_link['href']
-                if "hubcloud" in hubcloud_url:
-                    hubcloud_links.append(hubcloud_url)        
-        if not hubcloud_links:
-            logging.warning(f"No HubCloud links found for {movie_url}")
-            return None        
+                hubdrive_url = dl_link['href']
+                if "hubdrive.fit" in hubdrive_url:
+                    hubdrive_links.append(hubdrive_url)
+        
+        if not hubdrive_links:
+            logging.warning(f"No HubDrive links found for {movie_url}")
+            return None
+        
         direct_links = []
-        for hubcloud_url in hubcloud_links:
-            extracted_data = await get_direct_hubcloud_link(hubcloud_url)
+        for hubdrive_url in hubdrive_links:
+            extracted_data = await get_direct_hubdrive_link(hubdrive_url)
             if isinstance(extracted_data, dict) and "file_name" in extracted_data and "download_links" in extracted_data:
-                direct_links.append(extracted_data)        
+                direct_links.append(extracted_data)
+        
         if not direct_links:
-            return None        
+            return None
+        
         return direct_links
+
     except Exception as e:
         logging.error(f"Error extracting download links from {movie_url}: {e}")
         return None
@@ -141,8 +153,10 @@ def get_movie_links():
         if response.status_code != 200:
             logging.error(f"Failed to load SkyMoviesHD (Status Code: {response.status_code})")
             return []
+        
         soup = BeautifulSoup(response.text, "html.parser")
         movie_links = []
+        
         for movie in soup.find_all("div", class_="Fmvideo"):
             a_tag = movie.find('a')
             if a_tag:
@@ -150,8 +164,10 @@ def get_movie_links():
                 movie_url = a_tag['href']
                 if not movie_url.startswith("http"):
                     movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
-                movie_links.append({"title": title, "link": movie_url})        
+                movie_links.append({"title": title, "link": movie_url})
+        
         return movie_links
+
     except Exception as e:
         logging.error(f"Error getting movie links: {e}")
         return []
@@ -160,23 +176,29 @@ async def scrape_skymovieshd(client):
     """
     Scrapes and posts movies to Telegram.
     """
-    posted_movies = load_posted_movies() 
-    movies = get_movie_links()     
+    posted_movies = load_posted_movies()
+    movies = get_movie_links()
+    
     for movie in movies:
         if movie['title'] in posted_movies:
             continue
+        
         logging.info(f"🔍 Processing: {movie['title']}")
         direct_links = await extract_download_links(movie['link'])
+        
         if not direct_links:
             continue
+        
         message = f"<b>Recently Posted Movie ✅</b>\n\n"
         message += f"<b>{movie['title']}</b>\n\n"
         message += f"<b>Download Links:</b>\n\n"
+        
         for data in direct_links:
             message += f"<b>{data['file_name']}</b>\n"
             for i, link in enumerate(data['download_links'], start=1):
                 message += f"{i}. {link}\n"
             message += "\n"
+        
         await client.send_message(CHANNEL_ID, message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
         posted_movies.append(movie['title'])
         save_posted_movies(posted_movies)
