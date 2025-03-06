@@ -54,11 +54,14 @@ async def extract_download_links(movie_url):
         if response.status_code != 200:
             logging.error(f"❌ Failed to load movie page {movie_url} (Status Code: {response.status_code})")
             return None
-                    
+                
         soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="thumb col-md-2 col-sm-4 col-xs-6"]')
-        movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
 
+        # Extract movie title from <p> inside <figcaption>
+        title_section = soup.select_one("figcaption p")
+        movie_title = title_section.text.strip() if title_section else "Unknown Title"
+
+        # Get links to linksddr.buzz pages
         howblogs_links = [link['href'] for link in soup.select('a[href*="linksddr.buzz"]')]
         if not howblogs_links:
             logging.warning(f"⚠️ No linksddr links found for {movie_url}")
@@ -89,28 +92,32 @@ async def extract_download_links(movie_url):
         logging.error(f"❌ Error extracting download links from {movie_url}: {e}")
         return None
 
-# Get movie links from SkyMoviesHD
+# Get movie links from 9xmovie.trade
 async def get_movie_links():
     try:
-        logging.info("🔄 Fetching latest movie links from SkyMoviesHD...")
+        logging.info("🔄 Fetching latest movie links from 9xmovie.trade...")
         session = tls_client.Session(client_identifier="chrome_119")
         response = session.get(SKYMOVIESHD_URL, headers=HEADERS)
 
         if response.status_code != 200:
-            logging.error(f"❌ Failed to load SkyMoviesHD (Status Code: {response.status_code})")
+            logging.error(f"❌ Failed to load 9xmovie.trade (Status Code: {response.status_code})")
             return []
 
         soup = BeautifulSoup(response.text, "html.parser")
         movie_links = []
 
-        for movie in soup.find_all("div", class_="Fmvideo"):
-            a_tag = movie.find('a')
-            if a_tag:
-                title = a_tag.text.strip()
-                movie_url = a_tag['href']
-                if not movie_url.startswith("http"):
-                    movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
-                movie_links.append({"title": title, "link": movie_url})
+        # Select all <a> tags inside <figcaption>
+        for a_tag in soup.select("figcaption a"):
+            # Extract title from <p> inside <figcaption>
+            title_elem = a_tag.find("p")
+            title = title_elem.text.strip() if title_elem else a_tag.text.strip()
+
+            # Get the movie URL
+            movie_url = a_tag.get("href")
+            if movie_url and not movie_url.startswith("http"):
+                movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
+            
+            movie_links.append({"title": title, "link": movie_url})
 
         logging.info(f"✅ Found {len(movie_links)} new movies.")
         return movie_links
@@ -123,7 +130,7 @@ async def get_movie_links():
 async def scrape_skymovieshd(client):
     posted_movies = load_posted_movies()
     movies = await get_movie_links()
-    
+
     for movie in movies:
         if movie['title'] in posted_movies:
             logging.info(f"⏭️ Skipping already posted movie: {movie['title']}")
