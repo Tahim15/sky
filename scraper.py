@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO)
 
 # Constants
-SKYMOVIESHD_URL = "https://skymovieshd.farm/"
+SKYMOVIESHD_URL = "https://9xmovie.trade/"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 }
@@ -46,12 +46,12 @@ async def extract_download_links(movie_url):
             return None
                     
         soup = BeautifulSoup(response.text, 'html.parser')
-        title_section = soup.select_one('div[class^="Robiul"]')
+        title_section = soup.select_one('div[class^="thumb col-md-2 col-sm-4 col-xs-6"]')
         movie_title = title_section.text.replace('Download ', '').strip() if title_section else "Unknown Title"
 
-        howblogs_links = [link['href'] for link in soup.select('a[href*="howblogs.xyz"]')]
+        howblogs_links = [link['href'] for link in soup.select('a[href*="linksddr.buzz"]')]
         if not howblogs_links:
-            logging.warning(f"⚠️ No Howblogs links found for {movie_url}")
+            logging.warning(f"⚠️ No linksddr links found for {movie_url}")
             return None
 
         unique_links = set()
@@ -66,7 +66,7 @@ async def extract_download_links(movie_url):
 
         if unique_links:
             return [{
-                "file_name": "<b>🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>SkyMoviesHd ✅</a></b>",
+                "file_name": "<b>🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>MovieRulZ ✅</a></b>",
                 "download_links": list(unique_links)
             }]
 
