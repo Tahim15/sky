@@ -8,7 +8,11 @@ from pyrogram import Client, enums
 from bs4 import BeautifulSoup
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()]
+)
 
 # Constants
 SKYMOVIESHD_URL = "https://9xmovie.trade/"
@@ -28,16 +32,22 @@ def load_posted_movies():
         with open(MOVIES_FILE, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
+        logging.warning("⚠️ No posted movies file found, creating a new one.")
         return []
 
 # Save posted movies
 def save_posted_movies(movies):
-    with open(MOVIES_FILE, "w") as f:
-        json.dump(movies, f, indent=4)
+    try:
+        with open(MOVIES_FILE, "w") as f:
+            json.dump(movies, f, indent=4)
+        logging.info("✅ Successfully saved posted movies.")
+    except Exception as e:
+        logging.error(f"❌ Failed to save posted movies: {e}")
 
 # Extract Gofile.io & Streamtape.to links from Howblogs.xyz
 async def extract_download_links(movie_url):
     try:
+        logging.info(f"🔍 Extracting links from: {movie_url}")
         session = tls_client.Session(client_identifier="chrome_119")
         response = session.get(movie_url, headers=HEADERS)
 
@@ -57,6 +67,7 @@ async def extract_download_links(movie_url):
         unique_links = set()
         
         for howblogs_url in howblogs_links:
+            logging.info(f"🔄 Visiting Howblogs: {howblogs_url}")
             resp = session.get(howblogs_url, headers=HEADERS)
             nsoup = BeautifulSoup(resp.text, 'html.parser')
 
@@ -65,11 +76,13 @@ async def extract_download_links(movie_url):
                 unique_links.add(dl_link['href'].strip())
 
         if unique_links:
+            logging.info(f"✅ Extracted {len(unique_links)} links for {movie_title}")
             return [{
                 "file_name": "<b>🌟 Scrapped From <a href='https://t.me/Mr_Official_300'>MovieRulZ ✅</a></b>",
                 "download_links": list(unique_links)
             }]
 
+        logging.warning(f"⚠️ No valid download links found for {movie_url}")
         return None
 
     except Exception as e:
@@ -79,6 +92,7 @@ async def extract_download_links(movie_url):
 # Get movie links from SkyMoviesHD
 async def get_movie_links():
     try:
+        logging.info("🔄 Fetching latest movie links from SkyMoviesHD...")
         session = tls_client.Session(client_identifier="chrome_119")
         response = session.get(SKYMOVIESHD_URL, headers=HEADERS)
 
@@ -98,6 +112,7 @@ async def get_movie_links():
                     movie_url = SKYMOVIESHD_URL.rstrip("/") + "/" + movie_url.lstrip("/")
                 movie_links.append({"title": title, "link": movie_url})
 
+        logging.info(f"✅ Found {len(movie_links)} new movies.")
         return movie_links
 
     except Exception as e:
@@ -111,12 +126,14 @@ async def scrape_skymovieshd(client):
     
     for movie in movies:
         if movie['title'] in posted_movies:
+            logging.info(f"⏭️ Skipping already posted movie: {movie['title']}")
             continue
 
         logging.info(f"🔍 Processing: {movie['title']}")
         direct_links = await extract_download_links(movie['link'])
 
         if not direct_links:
+            logging.warning(f"⚠️ No valid links found for: {movie['title']}")
             continue
 
         message = f"<b>Recently Posted Movie ✅</b>\n\n"
@@ -129,21 +146,31 @@ async def scrape_skymovieshd(client):
                 message += f"{i}. {link}\n"
             message += "\n"
 
-        await client.send_message(CHANNEL_ID, message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
-        posted_movies.append(movie['title'])
-        save_posted_movies(posted_movies)
-        await asyncio.sleep(3)
+        try:
+            await client.send_message(CHANNEL_ID, message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            logging.info(f"✅ Posted {movie['title']} to Telegram.")
+            posted_movies.append(movie['title'])
+            save_posted_movies(posted_movies)
+            await asyncio.sleep(3)
+        except Exception as e:
+            logging.error(f"❌ Failed to send message for {movie['title']}: {e}")
 
 # Continuously check for new movies
 async def check_new_movies(client):
     while True:
+        logging.info("🔄 Checking for new movies...")
         await scrape_skymovieshd(client)
+        logging.info("⏳ Waiting for the next check...")
         await asyncio.sleep(300)  # Check every 5 minutes
 
 # Run the bot
 async def main():
+    logging.info("🚀 Starting Telegram bot...")
     async with Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN) as app:
         await check_new_movies(app)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logging.critical(f"❌ Bot crashed: {e}")
