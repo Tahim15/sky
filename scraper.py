@@ -45,15 +45,20 @@ async def extract_movie_links():
             logging.error(f"❌ Failed to load API (Status Code: {response.status_code})")
             return []
 
+        logging.info(f"✅ API Response (First 500 chars): {response.text[:500]}")  # Debugging
+
         movies_data = response.json()
         movie_links = []
 
         for movie in movies_data:
             title = movie.get("title", {}).get("rendered", "Unknown Title")
-            links = [link.get("href") for link in movie.get("links", []) if "href" in link]
+            links = [link["href"] for link in movie.get("links", []) if "href" in link]
 
-            if links:
-                movie_links.append({"title": title, "download_links": links})
+            if not links:
+                logging.warning(f"⚠️ No links found for: {title}")
+                continue  # Skip if no links
+
+            movie_links.append({"title": title, "download_links": links})
 
         logging.info(f"✅ Found {len(movie_links)} new movies.")
         return movie_links
