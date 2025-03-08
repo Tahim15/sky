@@ -2,11 +2,13 @@ import os
 import json
 import logging
 import asyncio
+import re
+import html
 import tls_client  # ✅ Use TLS Client for Cloudflare bypass
 from config import *
 from pyrogram import Client, enums
 
-# Set up logging to print in Koyeb logs
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -34,7 +36,7 @@ def save_posted_movies(movies):
     with open(MOVIES_FILE, "w") as f:
         json.dump(movies, f, indent=4)
 
-# Extract all links from JSON API
+# Extract movie links from API
 async def extract_movie_links():
     logging.info("🔄 Fetching movie links from API...")
     try:
@@ -52,7 +54,11 @@ async def extract_movie_links():
 
         for movie in movies_data:
             title = movie.get("title", {}).get("rendered", "Unknown Title")
-            links = [link["href"] for link in movie.get("links", []) if "href" in link]
+
+            # ✅ Extract links from `content.rendered`
+            content_html = movie.get("content", {}).get("rendered", "")
+            decoded_html = html.unescape(content_html)  # Decode HTML entities
+            links = re.findall(r'https?://[^\s"\']+', decoded_html)  # Extract URLs
 
             if not links:
                 logging.warning(f"⚠️ No links found for: {title}")
