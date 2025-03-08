@@ -6,8 +6,8 @@ from logging.handlers import RotatingFileHandler
 
 API_ID = int(os.environ.get("API_ID", "16531092"))
 API_HASH = os.environ.get("API_HASH", "b073b97bd4c8c56616fc2cbbd4da845a")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7524524705:AAH7aBrV5cAZNRFIx3ZZhO72kbi4tjNd8lI")
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002398179296"))
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8110171283:AAFC8VYjfo81nWiuyv7B4QgLRyVJ8tNCXVA")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002295241956"))
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 30))  # Check every 5 minutes
 CAPTCHA_API_KEY = os.environ.get("CAPTCHA_API_KEY", "42341e63a823ae375e6bef411db7ce85")
 HUBDRIVE_CRYPT = "QklvMlJxVlhnV0gwVHBoczBudFhzUmhjaEExaGs5UG01K1R6RnFLYnN3az0%3D"
