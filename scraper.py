@@ -6,8 +6,12 @@ import tls_client  # ✅ Use TLS Client for Cloudflare bypass
 from config import *
 from pyrogram import Client, enums
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging to print in Koyeb logs
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
 
 # Constants
 HB_LINKS_API = "https://hblinks.pro/wp-json/wp/v2/posts/"
@@ -32,6 +36,7 @@ def save_posted_movies(movies):
 
 # Extract all links from JSON API
 async def extract_movie_links():
+    logging.info("🔄 Fetching movie links from API...")
     try:
         session = tls_client.Session(client_identifier="chrome_119")
         response = session.get(HB_LINKS_API)
@@ -50,6 +55,7 @@ async def extract_movie_links():
             if links:
                 movie_links.append({"title": title, "download_links": links})
 
+        logging.info(f"✅ Found {len(movie_links)} new movies.")
         return movie_links
 
     except Exception as e:
@@ -58,11 +64,13 @@ async def extract_movie_links():
 
 # Scrape and post movies to Telegram
 async def scrape_movies(client):
+    logging.info("🔄 Checking for new movies...")
     posted_movies = load_posted_movies()
     movies = await extract_movie_links()
 
     for movie in movies:
         if movie["title"] in posted_movies:
+            logging.info(f"⏩ Skipping (Already Posted): {movie['title']}")
             continue
 
         logging.info(f"🔍 Processing: {movie['title']}")
@@ -76,7 +84,12 @@ async def scrape_movies(client):
         for i, link in enumerate(movie["download_links"], start=1):
             message += f"{i}. {link}\n"
 
-        await client.send_message(CHANNEL_ID, message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+        try:
+            await client.send_message(CHANNEL_ID, message, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            logging.info(f"✅ Successfully posted: {movie['title']}")
+        except Exception as e:
+            logging.error(f"❌ Failed to send message for {movie['title']}: {e}")
+
         posted_movies.append(movie["title"])
         save_posted_movies(posted_movies)
         await asyncio.sleep(3)
@@ -85,12 +98,17 @@ async def scrape_movies(client):
 async def check_new_movies(client):
     while True:
         await scrape_movies(client)
+        logging.info("⏳ Sleeping for 5 minutes before checking again...")
         await asyncio.sleep(300)  # Check every 5 minutes
 
 # Run the bot
 async def main():
+    logging.info("🚀 Bot is starting...")
     async with Client("bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN) as app:
         await check_new_movies(app)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logging.critical(f"❌ Bot Crashed: {e}")
